@@ -76,9 +76,40 @@ const rootReducer = combineReducers({
   filterState: filterReducer,
 });
 
-const TodoApp = () => {
+const TodoApp = ({ todos, onToggleTodo }) => {
   return (
-    <div>Todo App</div>
+    <TodoList
+      todos={todos}
+      onToggleTodo={onToggleTodo}
+    />
+  );
+};
+
+const TodoList = ({ todos, onToggleTodo }) => {
+  return (
+    <div>
+      {todos.map(todo =>
+          <TodoItem
+            key={todo.id}
+            todo={todo}
+            onToggleTodo={onToggleTodo}
+          />
+        )
+      }
+    </div>
+  );
+};
+
+const TodoItem = ({ todo, onToggleTodo }) => {
+  const { name, id, completed } = todo;
+
+  return (
+    <div>
+      {name}
+      <button type='button' onClick={() => onToggleTodo(id)}>
+        {completed ? 'Incomplete' : 'Complete'}
+      </button>
+    </div>
   );
 };
 
