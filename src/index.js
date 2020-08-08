@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { combineReducers, createStore, applyMiddleware } from 'redux';
 import { createLogger } from 'redux-logger';
-import thunk from 'redux-thunk';
+import createSagaMiddleware from 'redux-saga';
+import { put, takeEvery, delay } from 'redux-saga/effects';
 import { schema, normalize } from 'normalizr';
 import { v4 as uuid } from 'uuid';
 import { Provider, connect } from 'react-redux';
@@ -15,6 +16,7 @@ const TODO_TOGGLE = 'TODO_TOGGLE';
 const FILTER_SET = 'FILTER_SET';
 const NOTIFICATION_SHOW = 'NOTIFICATION_SHOW';
 const NOTIFICATION_HIDE = 'NOTIFICATION_HIDE';
+const TODO_ADD_WITH_NOTIFICATION = 'TODO_ADD_WITH_NOTIFICATION';
 
 const todos = [
   { id: '0', name: 'learn redux' },
@@ -145,12 +147,24 @@ const doHideNotification = id => {
 }
 
 const doAddTodoWithNotification = (id, name) => {
-  return dispatch => {
-    dispatch(doAddTodo(id, name));
-    setTimeout(() => {
-      dispatch(doHideNotification(id));
-    }, 5000);
+  return {
+    type: TODO_ADD_WITH_NOTIFICATION,
+    todo: { id, name },
   };
+};
+
+//sagas
+
+function* watchAddTodoWithNotification() {
+  yield takeEvery(TODO_ADD_WITH_NOTIFICATION, handleAddTodoWithNotification);
+};
+
+function* handleAddTodoWithNotification(action) {
+  const { todo } = action;
+  const { id, name } = todo;
+  yield put(doAddTodo(id, name));
+  yield delay(5000);
+  yield put(doHideNotification(id));
 };
 
 // store
@@ -162,8 +176,11 @@ const rootReducer = combineReducers({
 });
 
 const logger = createLogger();
+const saga = createSagaMiddleware();
 
-const store = createStore(rootReducer, undefined, applyMiddleware(thunk, logger));
+const store = createStore(rootReducer, undefined, applyMiddleware(saga, logger));
+
+saga.run(watchAddTodoWithNotification);
 
 // components
 
