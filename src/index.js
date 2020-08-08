@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { combineReducers, createStore, applyMiddleware } from 'redux';
 import { createLogger } from 'redux-logger';
 import { schema, normalize } from 'normalizr';
+import { v4 as uuid } from 'uuid';
 import { Provider, connect } from 'react-redux';
 import './index.css';
 
@@ -118,7 +119,10 @@ const store = createStore(rootReducer, undefined, applyMiddleware(logger));
 
 const TodoApp = () => {
   return (
-    <ConnectedTodoList />
+    <div>
+      <ConnectedTodoCreate />
+      <ConnectedTodoList />
+    </div>
   );
 };
 
@@ -148,6 +152,34 @@ const TodoItem = ({ todo, onToggleTodo }) => {
     </div>
   );
 };
+
+const TodoCreate = props => {
+  const [value, setValue] = useState('');
+
+  const onCreateTodo = event => {
+    props.onAddTodo(value);
+    setValue('');
+    event.preventDefault();
+  };
+
+  const onChangeName = event => {
+    setValue(event.target.value);
+  };
+
+  return (
+    <div>
+      <form onSubmit={onCreateTodo}>
+        <input
+          type='text'
+          placeholder='Add Todo ...'
+          value={value}
+          onChange={onChangeName}
+        />
+        <button type='submit'>Add</button>
+      </form>
+    </div>
+  )
+}
 
 // selectors
 
@@ -179,8 +211,15 @@ const mapDispatchToPropsItem = dispatch => {
   };
 };
 
+const mapDispatchToPropsTodoCreate = dispatch => {
+  return {
+    onAddTodo: name => dispatch(doAddTodo(uuid(), name)),
+  }
+}
+
 const ConnectedTodoList = connect(mapStateToPropsList)(TodoList);
 const ConnectedTodoItem = connect(mapStateToPropsItem, mapDispatchToPropsItem)(TodoItem);
+const ConnectedTodoCreate = connect(null, mapDispatchToPropsTodoCreate)(TodoCreate);
 
 ReactDOM.render(
     <Provider store={store}>
