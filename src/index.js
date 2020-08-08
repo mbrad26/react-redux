@@ -149,17 +149,27 @@ const TodoItem = ({ todo, onToggleTodo }) => {
   );
 };
 
+// selectors
+
+const getTodosAsIds = state => {
+  return state.todoState.ids;
+}
+
+const getTodo = (state, todoId) => {
+  return state.todoState.entities[todoId];
+}
+
 // Connecting React and Redux
 
 const mapStateToPropsList = state => {
   return {
-    todosAsIds: state.todoState.ids,
+    todosAsIds: getTodosAsIds(state),
   };
 };
 
 const mapStateToPropsItem = (state, props) => {
   return {
-    todo: state.todoState.entities[props.todoId],
+    todo: getTodo(state, props.todoId),
   };
 };
 
