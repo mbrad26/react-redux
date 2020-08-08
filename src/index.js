@@ -32,14 +32,11 @@ const todos = [
 // schemas
 
 const todoSchema = new schema.Entity('todo');
-
 const normalizedTodos = normalize(todos, [todoSchema]);
-// console.log(normalizedTodos);
 const initialTodoState = {
   entities: normalizedTodos.entities.todo,
   ids: normalizedTodos.result,
 };
-console.log(initialTodoState);
 
 const applyAddTodo = (state, action) => {
   const todo = { ...action.todo, completed: false };
@@ -120,6 +117,7 @@ const store = createStore(rootReducer, undefined, applyMiddleware(logger));
 const TodoApp = () => {
   return (
     <div>
+      <ConnectedFilter />
       <ConnectedTodoCreate />
       <ConnectedTodoList />
     </div>
@@ -181,10 +179,47 @@ const TodoCreate = props => {
   )
 }
 
+const Filter = ({ onSetFilter }) => {
+  return (
+    <div>
+      Show
+      <button
+        type='button'
+        onClick={() => onSetFilter('SHOW_ALL')}
+      >
+        All
+      </button>
+      <button
+        type='button'
+        onClick={() => onSetFilter('SHOW_COMPLETED')}
+      >
+        Completed
+      </button>
+      <button
+        type='button'
+        onClick={() => onSetFilter('SHOW_INCOMPLETED')}
+      >
+        Incompleted
+      </button>
+    </div>
+  )
+}
+
+// filters
+
+const VISIBILITY_FILTERS = {
+  SHOW_COMPLETED: item => item.completed,
+  SHOW_INCOMPLETED: item => item.incompleted,
+  SHOW_ALL: item => true,
+}
+
 // selectors
 
 const getTodosAsIds = state => {
-  return state.todoState.ids;
+  return state.todoState.ids
+    .map(id => state.todoState.entities[id])
+    .filter(VISIBILITY_FILTERS[state.filterState])
+    .map(todo => todo.id);
 }
 
 const getTodo = (state, todoId) => {
@@ -214,12 +249,19 @@ const mapDispatchToPropsItem = dispatch => {
 const mapDispatchToPropsTodoCreate = dispatch => {
   return {
     onAddTodo: name => dispatch(doAddTodo(uuid(), name)),
-  }
-}
+  };
+};
+
+const mapDispatchToPropsFilter = dispatch => {
+  return {
+    onSetFilter: filterType => dispatch(doSetFilter(filterType)),
+  };
+};
 
 const ConnectedTodoList = connect(mapStateToPropsList)(TodoList);
 const ConnectedTodoItem = connect(mapStateToPropsItem, mapDispatchToPropsItem)(TodoItem);
 const ConnectedTodoCreate = connect(null, mapDispatchToPropsTodoCreate)(TodoCreate);
+const ConnectedFilter = connect(null, mapDispatchToPropsFilter)(Filter);
 
 ReactDOM.render(
     <Provider store={store}>
