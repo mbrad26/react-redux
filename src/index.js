@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { combineReducers, createStore, applyMiddleware } from 'redux';
 import { createLogger } from 'redux-logger';
+import thunk from 'redux-thunk';
 import { schema, normalize } from 'normalizr';
 import { v4 as uuid } from 'uuid';
 import { Provider, connect } from 'react-redux';
@@ -12,8 +13,8 @@ import './index.css';
 const TODO_ADD = 'TODO_ADD';
 const TODO_TOGGLE = 'TODO_TOGGLE';
 const FILTER_SET = 'FILTER_SET';
-
-// reducers
+const NOTIFICATION_SHOW = 'NOTIFICATION_SHOW';
+const NOTIFICATION_HIDE = 'NOTIFICATION_HIDE';
 
 const todos = [
   { id: '0', name: 'learn redux' },
@@ -38,6 +39,8 @@ const initialTodoState = {
   ids: normalizedTodos.result,
 };
 
+// reducers
+
 const applyAddTodo = (state, action) => {
   const todo = { ...action.todo, completed: false };
   const entities = { ...state.entities, [todo.id]: todo };
@@ -56,6 +59,19 @@ const applyToggleTodo = (state, action) => {
 const applySetFilter = (state, action) => {
   return action.filter;
 };
+
+const applySetNotifyAboutAddTodo = (state, action) => {
+  const { name, id } = action.todo;
+  return { ...state, [id]: 'Todo Created: ' + name };
+};
+
+const applyRemoveNotification = (state, action) => {
+  const {
+    [action.id]: notificationToRemove,
+    ...restNotifications
+  } = state;
+  return restNotifications;
+}
 
 const todoReducer = (state = initialTodoState, action) => {
   switch(action.type) {
@@ -78,27 +94,63 @@ const filterReducer = (state = 'SHOW_ALL', action) => {
   }
 };
 
+const notificationReducer = (state = [], action) => {
+  switch(action.type) {
+    case TODO_ADD: {
+      return applySetNotifyAboutAddTodo(state, action);
+    }
+    case NOTIFICATION_HIDE: {
+      return applyRemoveNotification(state, action);
+    }
+    default: return state;
+  }
+}
+
 // action creators
 
 const doAddTodo = (id, name) => {
   return {
     type: TODO_ADD,
     todo: { id, name },
-  }
-}
+  };
+};
 
 const doToggleTodo = id => {
   return {
     type: TODO_TOGGLE,
     todo: { id },
-  }
+  };
 };
 
 const doSetFilter = filter => {
   return {
     type: FILTER_SET,
     filter,
+  };
+};
+
+const doShowNotification = (text, id) => {
+  return {
+    type: NOTIFICATION_SHOW,
+    text,
+    id,
+  };
+};
+
+const doHideNotification = id => {
+  return {
+    type: NOTIFICATION_HIDE,
+    id,
   }
+}
+
+const doAddTodoWithNotification = (id, name) => {
+  return dispatch => {
+    dispatch(doAddTodo(id, name));
+    setTimeout(() => {
+      dispatch(doHideNotification(id));
+    }, 5000);
+  };
 };
 
 // store
@@ -106,11 +158,12 @@ const doSetFilter = filter => {
 const rootReducer = combineReducers({
   todoState: todoReducer,
   filterState: filterReducer,
+  notificationState: notificationReducer,
 });
 
 const logger = createLogger();
 
-const store = createStore(rootReducer, undefined, applyMiddleware(logger));
+const store = createStore(rootReducer, undefined, applyMiddleware(thunk, logger));
 
 // components
 
@@ -120,6 +173,7 @@ const TodoApp = () => {
       <ConnectedFilter />
       <ConnectedTodoCreate />
       <ConnectedTodoList />
+      <ConnectedNotifications />
     </div>
   );
 };
@@ -205,6 +259,14 @@ const Filter = ({ onSetFilter }) => {
   )
 }
 
+const Notifications = ({ notifications }) => {
+  return (
+    <div>
+      {notifications.map(note => <div key={note}>{note}</div>)}
+    </div>
+  )
+}
+
 // filters
 
 const VISIBILITY_FILTERS = {
@@ -224,6 +286,14 @@ const getTodosAsIds = state => {
 
 const getTodo = (state, todoId) => {
   return state.todoState.entities[todoId];
+}
+
+const getNotifications = state => {
+  return getArrayOfObject(state.notificationState);
+}
+
+const getArrayOfObject = object => {
+  return Object.keys(object).map(key => object[key]);
 }
 
 // Connecting React and Redux
@@ -248,7 +318,7 @@ const mapDispatchToPropsItem = dispatch => {
 
 const mapDispatchToPropsTodoCreate = dispatch => {
   return {
-    onAddTodo: name => dispatch(doAddTodo(uuid(), name)),
+    onAddTodo: name => dispatch(doAddTodoWithNotification(uuid(), name)),
   };
 };
 
@@ -258,10 +328,17 @@ const mapDispatchToPropsFilter = dispatch => {
   };
 };
 
+const mapStateToPropsNotifications = (state, props) => {
+  return {
+    notifications: getNotifications(state),
+  }
+}
+
 const ConnectedTodoList = connect(mapStateToPropsList)(TodoList);
 const ConnectedTodoItem = connect(mapStateToPropsItem, mapDispatchToPropsItem)(TodoItem);
 const ConnectedTodoCreate = connect(null, mapDispatchToPropsTodoCreate)(TodoCreate);
 const ConnectedFilter = connect(null, mapDispatchToPropsFilter)(Filter);
+const ConnectedNotifications = connect(mapStateToPropsNotifications)(Notifications);
 
 ReactDOM.render(
     <Provider store={store}>
